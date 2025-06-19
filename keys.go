@@ -5,6 +5,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"log"
 	"os"
@@ -34,31 +35,45 @@ func (k *keys) Save(filename string) error {
 }
 
 func (k *keys) prConvAndSave(filename string) bool {
+
 	privbyte, err := x509.MarshalPKCS8PrivateKey(k.private)
 	if err != nil {
 		log.Println(err)
 		return false
 	}
-	err = saveAsFile(fmt.Sprintf("%s_privatekey.pem", filename), privbyte)
+	pBlock := &pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: privbyte,
+	}
+	pemData := pem.EncodeToMemory(pBlock)
+	err = saveAsFile(fmt.Sprintf("%s_privatekey.pem", filename), pemData)
 	if err != nil {
 		log.Println(err)
 		return false
 	}
 	return true
+
 }
 
 func (k *keys) puConvAndSave(filename string) bool {
+
 	publicbyte, err := x509.MarshalPKIXPublicKey(k.public)
 	if err != nil {
 		log.Println(err)
 		return false
 	}
-	err = saveAsFile(fmt.Sprintf("%s_publickey.pem", filename), publicbyte)
+	pBlock := &pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: publicbyte,
+	}
+	pemData := pem.EncodeToMemory(pBlock)
+	err = saveAsFile(fmt.Sprintf("%s_publickey.pem", filename), pemData)
 	if err != nil {
 		log.Println(err)
 		return false
 	}
 	return true
+
 }
 
 func saveAsFile(name string, byt []byte) error {
@@ -69,8 +84,43 @@ func saveAsFile(name string, byt []byte) error {
 	return nil
 }
 
-// Loads Keys from file
-func Loadkeys() {
-	x509.ParsePKCS8PrivateKey()
-	x509.ParsePKIXPublicKey()
+// Loads keys from pem files
+func Loadkeys(filename string) (keys, error) {
+	privPEM, err := readfile(fmt.Sprintf("%s_privatekey.pem", filename))
+	if err != nil {
+		return keys{}, err
+	}
+	pubPEM, err := readfile(fmt.Sprintf("%s_publickey.pem", filename))
+	if err != nil {
+		return keys{}, err
+	}
+	pbkey, err := x509.ParsePKIXPublicKey(pubPEM.Bytes)
+	if err != nil {
+		return keys{}, err
+	}
+	prkey, err := x509.ParsePKCS8PrivateKey(privPEM.Bytes)
+	if err != nil {
+		return keys{}, err
+	}
+	priv, ok := prkey.(*ecdsa.PrivateKey)
+	if !ok {
+		return keys{}, fmt.Errorf("not an ECDSA private key")
+	}
+	pub, ok := pbkey.(*ecdsa.PublicKey)
+	if !ok {
+		return keys{}, fmt.Errorf("not an ECDSA public key")
+	}
+	return keys{priv, pub}, nil
+}
+
+func readfile(filename string) (*pem.Block, error) {
+	byt, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("[error] reading pem file : %s", filename)
+	}
+	pblock, _ := pem.Decode(byt)
+	if pblock == nil {
+		return nil, fmt.Errorf("[error] failed to decode PEM block from file : %s", filename)
+	}
+	return pblock, nil
 }
