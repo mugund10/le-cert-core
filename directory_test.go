@@ -1,7 +1,6 @@
 package lecertcore
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -10,9 +9,8 @@ func TestGetNonce(t *testing.T) {
 	if err != nil {
 		t.Errorf("[directory] %s", err)
 	}
-	out, err := dir.GetNonce()
+	_, err = dir.GetNonce()
 	if err != nil {
 		t.Errorf("[directory] %s", err)
 	}
-	fmt.Println("out = ", out)
 }

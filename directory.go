@@ -7,6 +7,7 @@ import (
 	"net/http"
 )
 
+// le acme directory structure
 type directory struct {
 	Newnonce   string `json:"newNonce"`
 	Newaccount string `json:"newAccount"`
@@ -56,5 +57,3 @@ func (dir *directory) GetNonce() (string, error) {
 	}
 	return resp.Header.Get("replay-nonce"), nil
 }
-
-
