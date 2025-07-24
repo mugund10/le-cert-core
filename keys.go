@@ -11,8 +11,8 @@ import (
 )
 
 type keys struct {
-	public  *ed25519.PublicKey
-	private *ed25519.PrivateKey
+	public  ed25519.PublicKey
+	private ed25519.PrivateKey
 }
 
 // Creates Private and Public keys
@@ -21,7 +21,7 @@ func CreateKeys() keys {
 	if err != nil {
 		panic(err)
 	}
-	return keys{&pubkey, &privkey}
+	return keys{pubkey, privkey}
 }
 
 // Saves Keys to the file
@@ -35,7 +35,7 @@ func (k *keys) Save(filename string) error {
 
 // marshals privates key
 func (k *keys) prConvAndSave(filename string) bool {
-	privbyte, err := x509.MarshalPKCS8PrivateKey(*k.private)
+	privbyte, err := x509.MarshalPKCS8PrivateKey(k.private)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -55,7 +55,7 @@ func (k *keys) prConvAndSave(filename string) bool {
 
 // marshals pubic key
 func (k *keys) puConvAndSave(filename string) bool {
-	publicbyte, err := x509.MarshalPKIXPublicKey(*k.public)
+	publicbyte, err := x509.MarshalPKIXPublicKey(k.public)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -110,7 +110,7 @@ func Loadkeys(filename string) (keys, error) {
 		return keys{}, fmt.Errorf("[error] Its not an ed25519 publickey")
 	}
 
-	return keys{&pub, &priv}, nil
+	return keys{pub, priv}, nil
 }
 
 // reads pem files and return decode pem block
@@ -127,5 +127,5 @@ func readfile(filename string) (*pem.Block, error) {
 }
 
 func (k *keys) GetKeys() (ed25519.PublicKey, ed25519.PrivateKey) {
-	return *k.public, *k.private
+	return k.public, k.private
 }
