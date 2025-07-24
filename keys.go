@@ -112,6 +112,6 @@ func readfile(filename string) (*pem.Block, error) {
 	return pblock, nil
 }
 
-func (k *keys) GetKeys() *ecdsa.PrivateKey {
-	return k.private
+func (k *keys) GetKeys() ecdsa.PrivateKey {
+	return *k.private
 }
