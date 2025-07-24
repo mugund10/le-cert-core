@@ -7,6 +7,9 @@ import (
 	"net/http"
 )
 
+const Stag string = "https://acme-staging-v02.api.letsencrypt.org/directory"
+const Prod string = "https://acme-v02.api.letsencrypt.org/directory"
+
 // le acme directory structure
 type directory struct {
 	Newnonce   string `json:"newNonce"`
@@ -31,9 +34,11 @@ type profiles struct {
 	Tlsserver  string `json:"tlsserver"`
 }
 
-func GetDir() (*directory, error) {
+// makes gets requests to the acme server
+// use "Stag" for staging url and
+// "Prod" for production url).
+func GetDir(url string) (*directory, error) {
 	var Dir directory
-	url := "https://acme-staging-v02.api.letsencrypt.org/directory"
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("error getting response from %s", url)
@@ -50,10 +55,16 @@ func GetDir() (*directory, error) {
 	return &Dir, nil
 }
 
-func (dir *directory) GetNonce() (string, error) {
+// gets nonce from acme server
+func (dir *directory) getNonce() (string, error) {
 	resp, err := http.Head(dir.Newnonce)
 	if err != nil {
 		return "", fmt.Errorf("%s", err)
 	}
 	return resp.Header.Get("replay-nonce"), nil
+}
+
+// register new account 
+func (dir *directory) GetNewAccount() {
+
 }

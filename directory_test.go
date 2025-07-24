@@ -5,11 +5,11 @@ import (
 )
 
 func TestGetNonce(t *testing.T) {
-	dir, err := GetDir()
+	dir, err := GetDir(Stag)
 	if err != nil {
 		t.Errorf("[directory] %s", err)
 	}
-	_, err = dir.GetNonce()
+	_, err = dir.getNonce()
 	if err != nil {
 		t.Errorf("[directory] %s", err)
 	}
