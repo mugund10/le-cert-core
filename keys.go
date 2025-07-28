@@ -1,7 +1,8 @@
 package lecertcore
 
 import (
-	"crypto/ed25519"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
@@ -11,17 +12,16 @@ import (
 )
 
 type keys struct {
-	public  ed25519.PublicKey
-	private ed25519.PrivateKey
+	private *ecdsa.PrivateKey
 }
 
 // Creates Private and Public keys
 func CreateKeys() keys {
-	pubkey, privkey, err := ed25519.GenerateKey(rand.Reader)
+	privkey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		panic(err)
 	}
-	return keys{pubkey, privkey}
+	return keys{privkey}
 }
 
 // Saves Keys to the file
@@ -35,6 +35,7 @@ func (k *keys) Save(filename string) error {
 
 // marshals privates key
 func (k *keys) prConvAndSave(filename string) bool {
+
 	privbyte, err := x509.MarshalPKCS8PrivateKey(k.private)
 	if err != nil {
 		log.Println(err)
@@ -55,7 +56,7 @@ func (k *keys) prConvAndSave(filename string) bool {
 
 // marshals pubic key
 func (k *keys) puConvAndSave(filename string) bool {
-	publicbyte, err := x509.MarshalPKIXPublicKey(k.public)
+	publicbyte, err := x509.MarshalPKIXPublicKey(&k.private.PublicKey)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -92,25 +93,25 @@ func Loadkeys(filename string) (keys, error) {
 	if err != nil {
 		return keys{}, err
 	}
-	priv, ok := prkey.(ed25519.PrivateKey)
+	priv, ok := prkey.(*ecdsa.PrivateKey)
 	if !ok {
-		return keys{}, fmt.Errorf("[error] Its not an ed25519 privatekey")
+		return keys{}, fmt.Errorf("[error] Its not an ecdsa privatekey")
 	}
 
-	pubPEM, err := readfile(fmt.Sprintf("%s_publickey.pem", filename))
-	if err != nil {
-		return keys{}, err
-	}
-	pukey, err := x509.ParsePKIXPublicKey(pubPEM.Bytes)
-	if err != nil {
-		return keys{}, err
-	}
-	pub, ok := pukey.(ed25519.PublicKey)
-	if !ok {
-		return keys{}, fmt.Errorf("[error] Its not an ed25519 publickey")
-	}
+	// pubPEM, err := readfile(fmt.Sprintf("%s_publickey.pem", filename))
+	// if err != nil {
+	// 	return keys{}, err
+	// }
+	// pukey, err := x509.ParsePKIXPublicKey(pubPEM.Bytes)
+	// if err != nil {
+	// 	return keys{}, err
+	// }
+	// pub, ok := pukey.(ed25519.PublicKey)
+	// if !ok {
+	// 	return keys{}, fmt.Errorf("[error] Its not an ed25519 publickey")
+	// }
 
-	return keys{pub, priv}, nil
+	return keys{priv}, nil
 }
 
 // reads pem files and return decode pem block
@@ -126,6 +127,6 @@ func readfile(filename string) (*pem.Block, error) {
 	return pblock, nil
 }
 
-func (k *keys) GetKeys() (ed25519.PublicKey, ed25519.PrivateKey) {
-	return k.public, k.private
+func (k *keys) GetKeys() *ecdsa.PrivateKey {
+	return k.private
 }

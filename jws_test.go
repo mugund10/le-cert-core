@@ -6,7 +6,7 @@ import (
 )
 
 func TestNewJws(t *testing.T) {
-	keys, err := Loadkeys("testing")
+	keys, err := Loadkeys("jwstesting")
 	if err != nil {
 		t.Errorf("[keys] %s", err)
 	}
@@ -16,8 +16,16 @@ func TestNewJws(t *testing.T) {
 		"admin": true,
 		"iat":   1516239022,
 	}
-
-	ajws := NewJws(payload)
-	out := ajws.Gen(keys.private)
-	log.Println(string(out))
+	dir, err := GetDir(Stag)
+	if err != nil {
+		t.Errorf("[directory] %s", err)
+	}
+	non, err := dir.getNonce()
+	if err != nil {
+		t.Errorf("[directory] %s", err)
+	}
+	log.Println("nonce:", non)
+	ajws := NewJws(payload, keys.private.PublicKey, non, "randomurl")
+	out := ajws.EncodeFlat(keys.private)
+	log.Println(out)
 }

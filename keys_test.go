@@ -6,15 +6,16 @@ import (
 
 func TestCreateKeys(t *testing.T) {
 	kys := CreateKeys()
-	err := kys.Save("testing")
+	err := kys.Save("keytesting")
 	if err != nil {
 		t.Errorf("[keys] %s", err)
 	}
 }
 
 func TestLoadkeys(t *testing.T) {
-	_, err := Loadkeys("testing")
+	_, err := Loadkeys("keytesting")
 	if err != nil {
 		t.Errorf("[keys] %s", err)
 	}
+
 }

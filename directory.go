@@ -64,7 +64,3 @@ func (dir *directory) getNonce() (string, error) {
 	return resp.Header.Get("replay-nonce"), nil
 }
 
-// register new account 
-func (dir *directory) GetNewAccount() {
-
-}

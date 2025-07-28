@@ -1,65 +1,103 @@
 package lecertcore
 
 import (
-	"crypto/ed25519"
+	"crypto/ecdsa"
+	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"log"
+	"math/big"
 )
 
+// ref: https://datatracker.ietf.org/doc/html/rfc7515#appendix-A.7
+// unprotected header not allowed in acme. ref:https://datatracker.ietf.org/doc/html/rfc8555/#section-6.2
+type flattenedJws struct {
+	Payload   string `json:"payload"`
+	Protected string `json:"protected"`
+	Signature string `json:"signature"`
+}
+
 type jws struct {
-	header
 	payload
-	sign string
+	protected
 }
 
-func (j *jws) Gen(privKey ed25519.PrivateKey) string {
-	header, err := j.header.marshal()
+// encode jws using ed25519 privatekey
+func (j *jws) EncodeFlat(privKey *ecdsa.PrivateKey) flattenedJws {
+	proc, err := json.Marshal(j.protected)
 	if err != nil {
 		log.Println(err)
 	}
-	pl, err := j.payload.marshal()
+	pl, err := json.Marshal(j.payload.any)
 	if err != nil {
 		log.Println(err)
 	}
-	log.Println(string(pl))
-	EncHead := Encode(header)
-	EncPl := Encode(pl)
-	signature := sign(EncHead, EncPl, privKey)
-	jwsString := EncHead + "." + EncPl + "." + signature
-	return jwsString
+	EncProc := encodeToBase64(proc)
+	EncPl := encodeToBase64(pl)
+	signature := sign(EncProc, EncPl, privKey)
+	// jwsString := EncHead + "." + EncPl + "." + signature
+	return flattenedJws{Payload: EncPl, Protected: EncProc, Signature: signature}
 }
 
-func sign(head, pl string, privKey ed25519.PrivateKey) string {
-	msg := []byte(head + "." + pl)
-	sig := ed25519.Sign(privKey, msg)
-	return Encode(sig)
+// signs head and payload with ed25519 privatekey
+func sign(proc, pl string, privKey *ecdsa.PrivateKey) string {
+	msg := []byte(proc + "." + pl)
+	hash := sha256.Sum256(msg)
+	r, s, err := ecdsa.Sign(rand.Reader, privKey, hash[:])
+	if err != nil {
+		log.Println(err)
+	}
+	sig := append(EncodeCoOrd(r), EncodeCoOrd(s)...)
+	return encodeToBase64(sig)
 }
 
-func Encode(content []byte) string {
+// encodes content to base64
+func encodeToBase64(content []byte) string {
 	return base64.RawURLEncoding.EncodeToString(content)
 }
 
-type header struct {
-	Algorith string `json:"alg"`
-	Typ      string `json:"typ"`
+// ref: https://datatracker.ietf.org/doc/html/rfc8555/#section-6.2
+type protected struct {
+	Alg   string    `json:"alg"`
+	Typ   string    `json:"typ,omitempty"`
+	Nonce string    `json:"nonce"`
+	Url   string    `json:"url"`
+	Jwk   jwkHeader `json:"jwk,omitempty"`
+	Kid   string    `json:"kid,omitempty"`
 }
 
-func (h header) marshal() ([]byte, error) {
-	return json.Marshal(h)
+// ref: https://datatracker.ietf.org/doc/html/rfc7518#section-6.2
+type jwkHeader struct {
+	Kty string `json:"kty"`
+	Crv string `json:"crv"`
+	D   string `json:"d,omitempty"` // for private key
+	X   string `json:"x"`
+	Y   string `json:"y"`
 }
 
 type payload struct {
 	any
 }
 
-func (p payload) marshal() ([]byte, error) {
-	return json.Marshal(p.any)
+// adds basic structure to the jws
+func NewJws(pload any, pbkey ecdsa.PublicKey, nonce string, url string) *jws {
+	//pubkey := encodeToBase64(pbkey)
+	jwk := jwkHeader{Kty: "EC", Crv: "P-256", X: encodeToBase64(EncodeCoOrd(pbkey.X)), Y: encodeToBase64(EncodeCoOrd(pbkey.Y))}
+	//ref: https://datatracker.ietf.org/doc/html/rfc7515#appendix-A.3
+	proc := protected{Alg: "ES256", Typ: "JWS", Url: url, Nonce: nonce, Jwk: jwk}
+	pl := payload{pload}
+	return &jws{payload: pl, protected: proc}
 }
 
-// adds basic structure to the jws
-func NewJws(pload any) *jws {
-	head := header{Algorith: "EdDSA", Typ: "JWT"}
-	pl := payload{pload}
-	return &jws{head, pl, ""}
+// supports only p256
+func EncodeCoOrd(coOrd *big.Int) []byte {
+	coBytes := coOrd.Bytes()
+	coPad := make([]byte, 32)
+	copy(coPad[32-len(coBytes):], coBytes)
+	return coPad
+}
+
+func (j *jws) addreplayNonce(nonce string) {
+	j.protected.Nonce = nonce
 }
