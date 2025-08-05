@@ -40,6 +40,23 @@ func (j *jws) EncodeFlat(privKey *ecdsa.PrivateKey) flattenedJws {
 	return flattenedJws{Payload: EncPl, Protected: EncProc, Signature: signature}
 }
 
+// Generates Thumbprint of Jwk
+func ThumbPrint(pbkey ecdsa.PublicKey) string {
+	tp := map[string]string{
+		"crv": "P-256",
+		"kty": "EC",
+		"x":   encodeToBase64(encCoOrd(pbkey.X)),
+		"y":   encodeToBase64(encCoOrd(pbkey.Y)),
+	}
+	marshaled, err := json.Marshal(tp)
+	if err != nil {
+		log.Printf("ThumbPrint: failed to marshal JWK: %v", err)
+		return ""
+	}
+	hash := sha256.Sum256(marshaled)
+	return base64.RawURLEncoding.EncodeToString(hash[:])
+}
+
 // signs head and payload with ed25519 privatekey
 func sign(proc, pl string, privKey *ecdsa.PrivateKey) string {
 	msg := []byte(proc + "." + pl)
@@ -48,7 +65,7 @@ func sign(proc, pl string, privKey *ecdsa.PrivateKey) string {
 	if err != nil {
 		log.Println(err)
 	}
-	sig := append(EncodeCoOrd(r), EncodeCoOrd(s)...)
+	sig := append(encCoOrd(r), encCoOrd(s)...)
 	return encodeToBase64(sig)
 }
 
@@ -59,19 +76,19 @@ func encodeToBase64(content []byte) string {
 
 // ref: https://datatracker.ietf.org/doc/html/rfc8555/#section-6.2
 type protected struct {
-	Alg   string    `json:"alg"`
-	Typ   string    `json:"typ,omitempty"`
-	Nonce string    `json:"nonce"`
-	Url   string    `json:"url"`
-	Jwk   jwkHeader `json:"jwk,omitempty"`
-	Kid   string    `json:"kid,omitempty"`
+	Alg   string     `json:"alg"`
+	Typ   string     `json:"typ,omitempty"`
+	Nonce string     `json:"nonce"`
+	Url   string     `json:"url"`
+	Jwk   *jwkHeader `json:"jwk,omitempty"`
+	Kid   string     `json:"kid,omitempty"`
 }
 
 // ref: https://datatracker.ietf.org/doc/html/rfc7518#section-6.2
 type jwkHeader struct {
-	Kty string `json:"kty"`
 	Crv string `json:"crv"`
 	D   string `json:"d,omitempty"` // for private key
+	Kty string `json:"kty"`
 	X   string `json:"x"`
 	Y   string `json:"y"`
 }
@@ -81,23 +98,33 @@ type payload struct {
 }
 
 // adds basic structure to the jws
-func NewJws(pload any, pbkey ecdsa.PublicKey, nonce string, url string) *jws {
+// kid should be empty "" for the first request
+func newJws(pload any, pbkey ecdsa.PublicKey, nonce string, url string, kid string) *jws {
+	var jwk *jwkHeader
 	//pubkey := encodeToBase64(pbkey)
-	jwk := jwkHeader{Kty: "EC", Crv: "P-256", X: encodeToBase64(EncodeCoOrd(pbkey.X)), Y: encodeToBase64(EncodeCoOrd(pbkey.Y))}
+	if kid == "" {
+		jwk = &jwkHeader{Kty: "EC", Crv: "P-256", X: encodeToBase64(encCoOrd(pbkey.X)), Y: encodeToBase64(encCoOrd(pbkey.Y))}
+	}
 	//ref: https://datatracker.ietf.org/doc/html/rfc7515#appendix-A.3
-	proc := protected{Alg: "ES256", Typ: "JWS", Url: url, Nonce: nonce, Jwk: jwk}
+	proc := protected{Alg: "ES256", Typ: "JWS", Url: url, Nonce: nonce, Jwk: jwk, Kid: kid}
 	pl := payload{pload}
 	return &jws{payload: pl, protected: proc}
 }
 
 // supports only p256
-func EncodeCoOrd(coOrd *big.Int) []byte {
+func encCoOrd(coOrd *big.Int) []byte {
 	coBytes := coOrd.Bytes()
 	coPad := make([]byte, 32)
 	copy(coPad[32-len(coBytes):], coBytes)
 	return coPad
 }
 
-func (j *jws) addreplayNonce(nonce string) {
-	j.protected.Nonce = nonce
+func JwsPayload(pload any, pbkey ecdsa.PrivateKey, nonce string, url string, kid string) ([]byte, error) {
+	ajws := newJws(pload, pbkey.PublicKey, nonce, url, kid)
+	flat := ajws.EncodeFlat(&pbkey)
+	byt, err := json.Marshal(flat)
+	if err != nil {
+		return nil, err
+	}
+	return byt, nil
 }

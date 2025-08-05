@@ -5,6 +5,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
 	"log"
@@ -13,6 +14,10 @@ import (
 
 type keys struct {
 	private *ecdsa.PrivateKey
+}
+
+type csrDer struct {
+	Csr string `json:"csr"`
 }
 
 // Creates Private and Public keys
@@ -129,4 +134,18 @@ func readfile(filename string) (*pem.Block, error) {
 
 func (k *keys) GetKeys() *ecdsa.PrivateKey {
 	return k.private
+}
+
+func (k *keys) GenCSR(domains []string) ([]byte, error) {
+	cont := x509.CertificateRequest{
+		Subject: pkix.Name{
+			CommonName: domains[0],
+		},
+		DNSNames: domains,
+	}
+	der, err := x509.CreateCertificateRequest(rand.Reader, &cont, k.private)
+	if err != nil {
+		return nil, err
+	}
+	return der, nil
 }
