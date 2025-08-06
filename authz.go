@@ -7,14 +7,13 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"time"
 )
 
 type authResp struct {
-	Identifier []identifier `json:"identifier"`
-	Status     string       `json:"status"`
-	Expires    string       `json:"expires"`
-	Challenges []challenge  `json:"challenges"`
+	Identifier identifier  `json:"identifier"`
+	Status     string      `json:"status"`
+	Expires    string      `json:"expires"`
+	Challenges []challenge `json:"challenges"`
 }
 
 type challenge struct {
@@ -29,6 +28,7 @@ type challengeResp struct {
 }
 
 func (authz *authResp) DohttpChallenge(pkey ecdsa.PrivateKey, nonce string, kid string) (non string, chalLoc string, err error) {
+	res := acme[authResp]{res: *authz}
 	for _, chall := range authz.Challenges {
 		if chall.Typ == "http-01" {
 			byt, err := JwsPayload(nil, pkey, nonce, chall.Url, kid)
@@ -43,12 +43,14 @@ func (authz *authResp) DohttpChallenge(pkey ecdsa.PrivateKey, nonce string, kid 
 				})
 				log.Fatal(http.ListenAndServe(":80", nil))
 			}(chall, thumb)
-			time.Sleep(time.Second * 6)
 			non, chalLoc, err := chall.respond(chall.Url, strings.NewReader(string(byt)))
 			if err != nil {
 				return "", "", err
-			} else {
+			}
+			if ok, err := res.poll(chalLoc, "challenge", chall); ok {
 				return non, chalLoc, err
+			} else {
+				return "", "", err
 			}
 
 		}

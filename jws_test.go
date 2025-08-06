@@ -6,7 +6,7 @@ import (
 )
 
 func TestNewJws(t *testing.T) {
-	keys, err := Loadkeys("jwstesting")
+	keys, err := Loadkeys("jws")
 	if err != nil {
 		t.Errorf("[keys] %s", err)
 	}

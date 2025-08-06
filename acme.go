@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 )
 
-type acme[resource account | order | challenge | orderResp] struct {
+type acme[resource account | order | authResp | challenge | orderResp] struct {
 	res resource
 }
 
@@ -51,7 +50,6 @@ func (r acme[res]) poll(url string, typ string, ores any) (bool, error) {
 				return false, fmt.Errorf("it should be orderresp")
 			}
 			for {
-				time.Sleep(2 * time.Second)
 				resp, err := r.get(url)
 				if err != nil {
 					return false, err
@@ -60,6 +58,30 @@ func (r acme[res]) poll(url string, typ string, ores any) (bool, error) {
 					return false, err
 				}
 				switch ordresp.Status {
+				case "valid":
+					return true, nil
+				case "invalid":
+					return false, nil
+				}
+			}
+		}
+	case "challenge":
+		{
+			chalres, ok := ores.(challenge)
+			_ = chalres
+			if !ok {
+				return false, fmt.Errorf("it should be challenge")
+			}
+			for {
+				resp, err := r.get(url)
+				if err != nil {
+					return false, err
+				}
+				cha := &challengeResp{}
+				if err := json.Unmarshal(resp, cha); err != nil {
+					return false, err
+				}
+				switch cha.Status {
 				case "valid":
 					return true, nil
 				case "invalid":
