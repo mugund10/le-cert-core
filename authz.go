@@ -28,7 +28,7 @@ type challengeResp struct {
 	Status string `json:"status"`
 }
 
-func (authz *authResp) DohttpChallenge(pkey ecdsa.PrivateKey, nonce string, kid string) (string, string, error) {
+func (authz *authResp) DohttpChallenge(pkey ecdsa.PrivateKey, nonce string, kid string) (non string, chalLoc string, err error) {
 	for _, chall := range authz.Challenges {
 		if chall.Typ == "http-01" {
 			byt, err := JwsPayload(nil, pkey, nonce, chall.Url, kid)
@@ -44,11 +44,11 @@ func (authz *authResp) DohttpChallenge(pkey ecdsa.PrivateKey, nonce string, kid 
 				log.Fatal(http.ListenAndServe(":80", nil))
 			}(chall, thumb)
 			time.Sleep(time.Second * 6)
-			non, location, err := chall.respond(chall.Url, strings.NewReader(string(byt)))
+			non, chalLoc, err := chall.respond(chall.Url, strings.NewReader(string(byt)))
 			if err != nil {
 				return "", "", err
 			} else {
-				return non, location, err
+				return non, chalLoc, err
 			}
 
 		}
@@ -59,6 +59,5 @@ func (authz *authResp) DohttpChallenge(pkey ecdsa.PrivateKey, nonce string, kid 
 // submits neworder
 func (chall challenge) respond(url string, body io.Reader) (nonce string, location string, err error) {
 	res := acme[challenge]{res: chall}
-	nonce, location, err = res.post(url, body, &challengeResp{})
-	return
+	return res.post(url, body, &challengeResp{})
 }

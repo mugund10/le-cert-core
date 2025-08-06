@@ -37,14 +37,26 @@ func NewOrder(domains []string) order {
 // submits neworder
 func (ord order) Submit(url string, body io.Reader, oResp *orderResp) (nonce string, location string, err error) {
 	res := acme[order]{res: ord}
-	nonce, location, err = res.post(url, body, oResp)
-	return
+	return res.post(url, body, oResp)
+
 }
 
-func (ordR orderResp) finalize(body io.Reader, oResp *orderResp) (nonce string, location string, err error) {
-	res := acme[orderResp]{res: ordR}
-	nonce, location, err = res.post(ordR.Final, body, oResp)
-	return
+// finalizes order
+func (ordR *orderResp) finalize(body io.Reader) (certbyte []byte, nonce string, location string, err error) {
+	res := acme[orderResp]{res: *ordR}
+	nonce, location, err = res.post(ordR.Final, body, ordR)
+	if err != nil {
+		return nil, "", "", err
+	}
+	if ok, err := res.poll(location, "order", ordR); ok {
+		certbyte, err = res.get(ordR.Certificate)
+		if err != nil {
+			return nil, "", "", err
+		}
+		return certbyte, nonce, location, nil
+	} else {
+		return nil, "", "", err
+	}
 }
 
 func (ordR orderResp) GetAuth() (*authResp, error) {
@@ -57,6 +69,9 @@ func (ordR orderResp) GetAuth() (*authResp, error) {
 		return &authResp{}, err
 	}
 	authz := &authResp{}
-	json.Unmarshal(bod, authz)
+	err = json.Unmarshal(bod, authz)
+	if err != nil {
+		return &authResp{}, err
+	}
 	return authz, nil
 }

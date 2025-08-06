@@ -81,11 +81,7 @@ func (k *keys) puConvAndSave(filename string) bool {
 
 // saves file with the given name
 func saveAsFile(name string, byt []byte) error {
-	err := os.WriteFile(name, byt, 0644)
-	if err != nil {
-		return err
-	}
-	return nil
+	return os.WriteFile(name, byt, 0644)
 }
 
 // Loads keys from pem files
@@ -148,4 +144,21 @@ func (k *keys) GenCSR(domains []string) ([]byte, error) {
 		return nil, err
 	}
 	return der, nil
+}
+
+func SavePrivateKeyAsPEM(filename string, key *ecdsa.PrivateKey) error {
+	privBytes, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		return err
+	}
+	block := &pem.Block{
+		Type:  "EC PRIVATE KEY",
+		Bytes: privBytes,
+	}
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return pem.Encode(f, block)
 }

@@ -27,8 +27,7 @@ func NewAccount(mailaddr string, tos bool) *account {
 }
 
 // creates new account
-func (a account) Create(url string, body io.Reader) (nonce string, kid string, err error) {
+func (a account) Create(url string, body io.Reader) (nonce string, location string, err error) {
 	res := acme[account]{res: a}
-	nonce, kid, err = res.post(url, body, &accountResp{})
-	return
+	return res.post(url, body, &accountResp{})
 }

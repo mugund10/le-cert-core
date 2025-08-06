@@ -1,17 +1,9 @@
 package lecertcore
 
 import (
-	"crypto/ecdsa"
-	"crypto/x509"
-	"encoding/json"
-	"encoding/pem"
-	"io"
 	"log"
-	"net/http"
-	"os"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestNewAccount(t *testing.T) {
@@ -29,6 +21,7 @@ func TestNewAccount(t *testing.T) {
 	if err != nil {
 		t.Errorf("[nonce] %s", err)
 	}
+
 	// account create
 	acc := NewAccount("bjmugundhan@gmail.com", true)
 	finalout, err := JwsPayload(acc, *kys.private, non, dir.Newaccount, "")
@@ -39,6 +32,8 @@ func TestNewAccount(t *testing.T) {
 	if err != nil {
 		t.Errorf("[account] %s", err)
 	}
+	log.Println("non", non, "kid", kid, "err", err)
+
 	// submit order
 	order := NewOrder(dom)
 	finalout, err = JwsPayload(order, *kys.private, non, dir.Neworder, kid)
@@ -50,15 +45,18 @@ func TestNewAccount(t *testing.T) {
 	if err != nil {
 		t.Errorf("[order] %s", err)
 	}
+	log.Println("non", non, "orderloc", orderloc, "err", err)
+
 	//getting challenges
 	authz, err := orresp.GetAuth()
 	if err != nil {
 		t.Errorf("[orderResp] %s", err)
 	}
-	non, _, err = authz.DohttpChallenge(*kys.private, non, kid)
+	non, chalLoc, err := authz.DohttpChallenge(*kys.private, non, kid)
 	if err != nil {
 		t.Errorf("[http chall] %s", err)
 	}
+	log.Println("non", non, "chalLoc", chalLoc, "err", err)
 
 	// sub csr
 	kyss, err := Loadkeys("csr")
@@ -75,79 +73,20 @@ func TestNewAccount(t *testing.T) {
 	if err != nil {
 		t.Errorf("[Jwspayload - csr] %s", err)
 	}
-	non1, orderloc1, err1 := orresp.finalize(strings.NewReader(string(cout)), orresp)
+	cert, non1, orderloc1, err1 := orresp.finalize(strings.NewReader(string(cout)))
 	if err1 != nil {
-		t.Errorf("[finalize] %s", err)
+		t.Errorf("[finalize] %s", err1)
 	}
-	log.Println(non1, orderloc1, err1)
-
-	for {
-		time.Sleep(2 * time.Second)
-		resp2, err := http.Get(orderloc)
-		if err != nil {
-			t.Fatalf("[poll order] %s", err)
-		}
-		body2, err := io.ReadAll(resp2.Body)
-		resp2.Body.Close()
-		if err != nil {
-			t.Fatalf("[read order poll] %s", err)
-		}
-
-		var updated orderResp
-		if err := json.Unmarshal(body2, &updated); err != nil {
-			t.Fatalf("[unmarshal order] %s", err)
-		}
-
-		log.Println("Order status:", updated.Status)
-		if updated.Status == "valid" {
-			certResp, err := http.Get(updated.Certificate)
-			if err != nil {
-				t.Fatalf("[download cert] %s", err)
-			}
-			certBody, err := io.ReadAll(certResp.Body)
-			certResp.Body.Close()
-			if err != nil {
-				t.Fatalf("[read cert] %s", err)
-			}
-			err = SaveCertToFile("cert.pem", certBody)
-			if err != nil {
-				t.Fatalf("[save cert] %s", err)
-			}
-			log.Println("Certificate saved as cert.pem")
-
-			// Save the private key
-			err = SavePrivateKeyAsPEM("cert.key", kyss.private)
-			if err != nil {
-				t.Fatalf("[save key] %s", err)
-			}
-			log.Println("Private key saved as cert.key")
-			break
-		}
-
-		if updated.Status == "invalid" {
-			t.Fatalf("Order failed: %s", string(body2))
-		}
-	}
-
-}
-
-func SaveCertToFile(filename string, cert []byte) error {
-	return os.WriteFile(filename, cert, 0644)
-}
-
-func SavePrivateKeyAsPEM(filename string, key *ecdsa.PrivateKey) error {
-	privBytes, err := x509.MarshalECPrivateKey(key)
+	log.Println("non1", non1, "orderloc1", orderloc1, "err1", err1)
+	err = saveAsFile("cert.pem", cert)
 	if err != nil {
-		return err
+		t.Fatalf("[save cert] %s", err)
 	}
-	block := &pem.Block{
-		Type:  "EC PRIVATE KEY",
-		Bytes: privBytes,
-	}
-	f, err := os.Create(filename)
+	log.Println("Certificate saved as cert.pem")
+	err = SavePrivateKeyAsPEM("cert.key", kyss.private)
 	if err != nil {
-		return err
+		t.Fatalf("[save key] %s", err)
 	}
-	defer f.Close()
-	return pem.Encode(f, block)
+	log.Println("Private key saved as cert.key")
+
 }
