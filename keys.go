@@ -41,7 +41,6 @@ func (k *keys) Save(filename string) error {
 
 // marshals privates key
 func (k *keys) prConvAndSave(filename string) bool {
-
 	privbyte, err := x509.MarshalPKCS8PrivateKey(k.private)
 	if err != nil {
 		log.Println(err)
@@ -133,6 +132,7 @@ func (k *keys) GetKeys() *ecdsa.PrivateKey {
 	return k.private
 }
 
+// generate csr
 func (k *keys) genCSR(domains []string) ([]byte, error) {
 	cont := x509.CertificateRequest{
 		Subject: pkix.Name{
@@ -167,7 +167,7 @@ func savePrivateKeyAsPEM(filename string, key *ecdsa.PrivateKey) error {
 func CreateCsr(name string, dom []string) (*csrDer, error) {
 	kyss, err := Loadkeys(name)
 	if err != nil {
-		kyss := CreateKeys()
+		kyss = CreateKeys()
 		if err := kyss.Save(name); err != nil {
 			return nil, err
 		}
@@ -177,10 +177,11 @@ func CreateCsr(name string, dom []string) (*csrDer, error) {
 		return nil, err
 	}
 	csrEnc := encodeToBase64(csr)
-	return &csrDer{Csr: csrEnc}, nil
+	return &csrDer{Csr: csrEnc, Private: kyss.private}, nil
 
 }
-func (csr csrDer) SaveCert(cert []byte) error {
+
+func (csr *csrDer) SaveCert(cert []byte) error {
 	err := saveAsFile("cert.pem", cert)
 	if err != nil {
 		return fmt.Errorf("[save cert] %s", err)
