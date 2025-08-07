@@ -42,7 +42,7 @@ func (ord order) Submit(url string, body io.Reader, oResp *orderResp) (nonce str
 }
 
 // finalizes order
-func (ordR *orderResp) finalize(body io.Reader) (certbyte []byte, nonce string, location string, err error) {
+func (ordR *orderResp) Finalize(body io.Reader) (certbyte []byte, nonce string, location string, err error) {
 	res := acme[orderResp]{res: *ordR}
 	nonce, location, err = res.post(ordR.Final, body, ordR)
 	if err != nil {
