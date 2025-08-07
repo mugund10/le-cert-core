@@ -20,7 +20,7 @@ func TestNewJws(t *testing.T) {
 	if err != nil {
 		t.Errorf("[directory] %s", err)
 	}
-	non, err := dir.getNonce()
+	non, err := dir.GetNonce()
 	if err != nil {
 		t.Errorf("[directory] %s", err)
 	}

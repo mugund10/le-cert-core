@@ -56,7 +56,7 @@ func GetDir(url string) (*directory, error) {
 }
 
 // gets initial nonce from acme server
-func (dir *directory) getNonce() (string, error) {
+func (dir *directory) GetNonce() (string, error) {
 	resp, err := http.Head(dir.Newnonce)
 	if err != nil {
 		return "", fmt.Errorf("%s", err)

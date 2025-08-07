@@ -9,7 +9,7 @@ func TestGetNonce(t *testing.T) {
 	if err != nil {
 		t.Errorf("[directory] %s", err)
 	}
-	_, err = dir.getNonce()
+	_, err = dir.GetNonce()
 	if err != nil {
 		t.Errorf("[directory] %s", err)
 	}
