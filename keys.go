@@ -162,3 +162,20 @@ func SavePrivateKeyAsPEM(filename string, key *ecdsa.PrivateKey) error {
 	defer f.Close()
 	return pem.Encode(f, block)
 }
+
+func CreateCsr(name string, dom []string) (*csrDer, error) {
+	kyss, err := Loadkeys(name)
+	if err != nil {
+		kyss := CreateKeys()
+		if err := kyss.Save(name); err != nil {
+			return nil, err
+		}
+	}
+	csr, err := kyss.GenCSR(dom)
+	if err != nil {
+		return nil, err
+	}
+	csrEnc := encodeToBase64(csr)
+	return &csrDer{Csr: csrEnc}, nil
+
+}
