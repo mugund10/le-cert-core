@@ -13,11 +13,12 @@ import (
 )
 
 type keys struct {
-	Private *ecdsa.PrivateKey
+	private *ecdsa.PrivateKey
 }
 
 type csrDer struct {
-	Csr string `json:"csr"`
+	Csr     string            `json:"csr"`
+	Private *ecdsa.PrivateKey `json:"-"`
 }
 
 // Creates Private and Public keys
@@ -41,7 +42,7 @@ func (k *keys) Save(filename string) error {
 // marshals privates key
 func (k *keys) prConvAndSave(filename string) bool {
 
-	privbyte, err := x509.MarshalPKCS8PrivateKey(k.Private)
+	privbyte, err := x509.MarshalPKCS8PrivateKey(k.private)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -61,7 +62,7 @@ func (k *keys) prConvAndSave(filename string) bool {
 
 // marshals pubic key
 func (k *keys) puConvAndSave(filename string) bool {
-	publicbyte, err := x509.MarshalPKIXPublicKey(&k.Private.PublicKey)
+	publicbyte, err := x509.MarshalPKIXPublicKey(&k.private.PublicKey)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -129,7 +130,7 @@ func readfile(filename string) (*pem.Block, error) {
 }
 
 func (k *keys) GetKeys() *ecdsa.PrivateKey {
-	return k.Private
+	return k.private
 }
 
 func (k *keys) genCSR(domains []string) ([]byte, error) {
@@ -139,7 +140,7 @@ func (k *keys) genCSR(domains []string) ([]byte, error) {
 		},
 		DNSNames: domains,
 	}
-	der, err := x509.CreateCertificateRequest(rand.Reader, &cont, k.Private)
+	der, err := x509.CreateCertificateRequest(rand.Reader, &cont, k.private)
 	if err != nil {
 		return nil, err
 	}
@@ -178,4 +179,16 @@ func CreateCsr(name string, dom []string) (*csrDer, error) {
 	csrEnc := encodeToBase64(csr)
 	return &csrDer{Csr: csrEnc}, nil
 
+}
+func (csr csrDer) SaveCert(cert []byte) error {
+	err := saveAsFile("cert.pem", cert)
+	if err != nil {
+		return fmt.Errorf("[save cert] %s", err)
+	}
+	log.Println("Certificate saved as cert.pem")
+	err = savePrivateKeyAsPEM("cert.key", csr.Private)
+	if err != nil {
+		return fmt.Errorf("[save key] %s", err)
+	}
+	return nil
 }

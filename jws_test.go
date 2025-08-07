@@ -25,7 +25,7 @@ func TestNewJws(t *testing.T) {
 		t.Errorf("[directory] %s", err)
 	}
 	log.Println("nonce:", non)
-	ajws := newJws(payload, keys.Private.PublicKey, non, "randomurl", "")
-	out := ajws.EncodeFlat(keys.Private)
+	ajws := newJws(payload, keys.private.PublicKey, non, "randomurl", "")
+	out := ajws.EncodeFlat(keys.private)
 	log.Println(out)
 }
