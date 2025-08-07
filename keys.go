@@ -13,7 +13,7 @@ import (
 )
 
 type keys struct {
-	private *ecdsa.PrivateKey
+	Private *ecdsa.PrivateKey
 }
 
 type csrDer struct {
@@ -41,7 +41,7 @@ func (k *keys) Save(filename string) error {
 // marshals privates key
 func (k *keys) prConvAndSave(filename string) bool {
 
-	privbyte, err := x509.MarshalPKCS8PrivateKey(k.private)
+	privbyte, err := x509.MarshalPKCS8PrivateKey(k.Private)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -61,7 +61,7 @@ func (k *keys) prConvAndSave(filename string) bool {
 
 // marshals pubic key
 func (k *keys) puConvAndSave(filename string) bool {
-	publicbyte, err := x509.MarshalPKIXPublicKey(&k.private.PublicKey)
+	publicbyte, err := x509.MarshalPKIXPublicKey(&k.Private.PublicKey)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -129,24 +129,24 @@ func readfile(filename string) (*pem.Block, error) {
 }
 
 func (k *keys) GetKeys() *ecdsa.PrivateKey {
-	return k.private
+	return k.Private
 }
 
-func (k *keys) GenCSR(domains []string) ([]byte, error) {
+func (k *keys) genCSR(domains []string) ([]byte, error) {
 	cont := x509.CertificateRequest{
 		Subject: pkix.Name{
 			CommonName: domains[0],
 		},
 		DNSNames: domains,
 	}
-	der, err := x509.CreateCertificateRequest(rand.Reader, &cont, k.private)
+	der, err := x509.CreateCertificateRequest(rand.Reader, &cont, k.Private)
 	if err != nil {
 		return nil, err
 	}
 	return der, nil
 }
 
-func SavePrivateKeyAsPEM(filename string, key *ecdsa.PrivateKey) error {
+func savePrivateKeyAsPEM(filename string, key *ecdsa.PrivateKey) error {
 	privBytes, err := x509.MarshalECPrivateKey(key)
 	if err != nil {
 		return err
@@ -171,7 +171,7 @@ func CreateCsr(name string, dom []string) (*csrDer, error) {
 			return nil, err
 		}
 	}
-	csr, err := kyss.GenCSR(dom)
+	csr, err := kyss.genCSR(dom)
 	if err != nil {
 		return nil, err
 	}

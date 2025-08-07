@@ -75,3 +75,7 @@ func (ordR orderResp) GetAuth() (*authResp, error) {
 	}
 	return authz, nil
 }
+
+func GetOrderResp() *orderResp {
+	return &orderResp{}
+}
