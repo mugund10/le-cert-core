@@ -6,10 +6,7 @@ import (
 )
 
 func TestNewJws(t *testing.T) {
-	keys, err := Loadkeys("accounttesting")
-	if err != nil {
-		t.Errorf("[keys] %s", err)
-	}
+	keys := CreateKeys()
 	payload := map[string]interface{}{
 		"sub":   "1234567890",
 		"name":  "John Doe",
